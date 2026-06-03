@@ -31,7 +31,7 @@ def _get_credentials() -> Credentials:
     return creds
 
 
-def upload_video(video_path: str, title: str, description: str, tags: list[str]) -> str:
+def upload_video(video_path: str, title: str, description: str, tags: list) -> str:
     """Upload video to YouTube. Returns the video URL."""
     creds = _get_credentials()
     youtube = build("youtube", "v3", credentials=creds)

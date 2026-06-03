@@ -73,7 +73,7 @@ def _pick_educational_topic(day_of_year: int) -> str:
     return EDUCATIONAL_TOPICS[idx]
 
 
-def _fetch_wikipedia_summary(topic: str) -> str | None:
+def _fetch_wikipedia_summary(topic: str):
     """
     Fetch a short Wikipedia summary for factual grounding.
     Wikipedia content is CC BY-SA — we use it as a source, not verbatim copy.

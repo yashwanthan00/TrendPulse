@@ -23,7 +23,7 @@ def text_to_speech(text: str, output_path: str) -> str:
     return output_path
 
 
-def synthesize_slides(slides: list[str], audio_dir: str) -> list[str]:
+def synthesize_slides(slides: list, audio_dir: str) -> list:
     """Generate one audio file per slide. Returns list of audio paths."""
     paths = []
     for i, slide_text in enumerate(slides):

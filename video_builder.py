@@ -20,7 +20,7 @@ OVERLAY_OPACITY = 150   # 0-255, darkens background so text pops
 MAX_CHARS_PER_LINE = 42
 
 
-def _wrap_text(text: str) -> list[str]:
+def _wrap_text(text: str) -> list:
     words = text.split()
     lines, current = [], ""
     for word in words:
@@ -73,8 +73,8 @@ def _create_slide_image(text: str, bg_path: str, output_path: str, slide_index: 
 
 
 def build_video(
-    slides: list[str],
-    audio_paths: list[str],
+    slides: list,
+    audio_paths: list,
     bg_path: str,
     output_path: str,
 ) -> str:
