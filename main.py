@@ -16,6 +16,7 @@ from image_fetcher import fetch_image
 from video_builder import build_video
 from copyright_checker import run_full_audit
 from youtube_uploader import upload_video
+from video_logger import log_run, log_failure
 
 load_dotenv()
 
@@ -60,7 +61,7 @@ def run():
 
     if not audit["passed"]:
         logger.error("Copyright audit FAILED — aborting upload to protect the channel.")
-        logger.error("Fix the errors above and re-run.")
+        log_failure(topic, mode, "Copyright audit failed: " + str(audit["errors"]))
         sys.exit(1)
 
     # Step 5: Text-to-speech narration (edge-tts, original audio)
@@ -75,6 +76,15 @@ def run():
         video_path=video_path,
         title=script["title"],
         description=script["description"],
+        tags=script["tags"],
+    )
+
+    # Step 8: Log to dashboard
+    log_run(
+        topic=topic,
+        mode=mode,
+        title=script["title"],
+        youtube_url=url,
         tags=script["tags"],
     )
 

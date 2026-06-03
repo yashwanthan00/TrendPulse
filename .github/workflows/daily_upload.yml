@@ -2,8 +2,11 @@ name: TrendPulse Daily Upload
 
 on:
   schedule:
-    - cron: "0 10 * * *"  # runs every day at 10:00 AM UTC
-  workflow_dispatch:        # allows manual trigger from GitHub UI
+    - cron: "0 10 * * *"  # every day at 10:00 AM UTC
+  workflow_dispatch:        # manual trigger from GitHub UI
+
+permissions:
+  contents: write           # needed to commit history.json back
 
 jobs:
   upload:
@@ -18,11 +21,11 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Install system deps for MoviePy
+      - name: Install system deps
         run: sudo apt-get install -y ffmpeg fonts-liberation
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt
 
       - name: Write credentials
         run: |
@@ -34,8 +37,16 @@ jobs:
           echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
           echo "PEXELS_API_KEY=${{ secrets.PEXELS_API_KEY }}" >> .env
 
-      - name: Run TrendPulse
+      - name: Run TrendPulse pipeline
         run: python main.py
+
+      - name: Commit dashboard history
+        run: |
+          git config user.name "TrendPulse Bot"
+          git config user.email "yashwanthan00@gmail.com"
+          git add docs/history.json
+          git diff --staged --quiet || git commit -m "📊 Update dashboard history [$(date +'%Y-%m-%d')]"
+          git push
 
       - name: Upload logs as artifact
         if: always()
