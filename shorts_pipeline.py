@@ -239,7 +239,7 @@ def _short_frame(text: str, t: float, duration: float, slide_idx: int, total: in
     offset = int(25 * (1 - alpha))
 
     # ── Top branding ──
-    top_grad = Image.new("RGBA", (SW, 200), (0,0,0,0))
+    top_grad = Image.new("RGBA", (SW, SH), (0,0,0,0))
     tg = ImageDraw.Draw(top_grad)
     for y in range(200):
         tg.line([(0,y),(SW,y)], fill=(0,0,0, int(160*(1-y/200))))
@@ -270,10 +270,10 @@ def _short_frame(text: str, t: float, duration: float, slide_idx: int, total: in
         draw.text((x,   y  ), line, font=font, fill=(*WHITE, int(255*alpha)))
 
     # ── Bottom CTA strip ──
-    bot = Image.new("RGBA", (SW, 180), (0,0,0,0))
+    bot = Image.new("RGBA", (SW, SH), (0,0,0,0))
     bd  = ImageDraw.Draw(bot)
     for y in range(180):
-        bd.line([(0,y),(SW,y)], fill=(0,0,0, int(170*(y/180))))
+        bd.line([(0, SH-180+y),(SW, SH-180+y)], fill=(0,0,0, int(170*(y/180))))
     base = Image.alpha_composite(base.convert("RGBA"), bot).convert("RGB")
     draw = ImageDraw.Draw(base)
 
