@@ -7,7 +7,10 @@ After that, GitHub Actions handles all uploads — no local auth needed ever aga
 import json
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+SCOPES = [
+    "https://www.googleapis.com/auth/youtube.upload",
+    "https://www.googleapis.com/auth/youtube.readonly",
+]
 
 def main():
     print("\n=== TrendPulse — YouTube One-Time Auth ===\n")
