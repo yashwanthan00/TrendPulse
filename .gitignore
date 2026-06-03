@@ -1,0 +1,8 @@
+.env
+token.json
+client_secrets.json
+output/
+logs/
+__pycache__/
+*.pyc
+.DS_Store

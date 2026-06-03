@@ -1,0 +1,45 @@
+name: TrendPulse Daily Upload
+
+on:
+  schedule:
+    - cron: "0 10 * * *"  # runs every day at 10:00 AM UTC
+  workflow_dispatch:        # allows manual trigger from GitHub UI
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install system deps for MoviePy
+        run: sudo apt-get install -y ffmpeg fonts-liberation
+
+      - name: Write credentials
+        run: |
+          echo '${{ secrets.CLIENT_SECRETS }}' > client_secrets.json
+          echo '${{ secrets.YOUTUBE_TOKEN }}' > token.json
+
+      - name: Write .env
+        run: |
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
+          echo "PEXELS_API_KEY=${{ secrets.PEXELS_API_KEY }}" >> .env
+
+      - name: Run TrendPulse
+        run: python main.py
+
+      - name: Upload logs as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ github.run_number }}
+          path: logs/
