@@ -241,9 +241,13 @@
       letter-spacing: 0.04em;
     }
 
-    .badge-trending  { background: #1e3a5f; color: #60a5fa; border: 1px solid #1d4ed8; }
+    .badge-trending    { background: #1e3a5f; color: #60a5fa; border: 1px solid #1d4ed8; }
     .badge-educational { background: #1a3a2a; color: #4ade80; border: 1px solid #166534; }
-    .badge-failed    { background: #3b1111; color: #f87171; border: 1px solid #991b1b; }
+    .badge-mythology   { background: #3b1a5f; color: #c084fc; border: 1px solid #7c3aed; }
+    .badge-story       { background: #3b2a1a; color: #fb923c; border: 1px solid #c2410c; }
+    .badge-sports      { background: #1a3a3b; color: #22d3ee; border: 1px solid #0e7490; }
+    .badge-movie       { background: #3b1a2a; color: #f472b6; border: 1px solid #be185d; }
+    .badge-failed      { background: #3b1111; color: #f87171; border: 1px solid #991b1b; }
 
     .card-date { font-size: 12px; color: #475569; }
 
@@ -378,9 +382,14 @@
 <div class="filters">
   <span class="filter-label">Filter:</span>
   <button class="filter-btn active" onclick="filter('all', this)">All</button>
-  <button class="filter-btn" onclick="filter('trending', this)">Trending</button>
-  <button class="filter-btn" onclick="filter('educational', this)">Educational</button>
-  <button class="filter-btn" onclick="filter('failed', this)">Failed</button>
+  <button class="filter-btn" onclick="filter('Indian Mythology', this)">🕉️ Mythology</button>
+  <button class="filter-btn" onclick="filter('Sports', this)">🏆 Sports</button>
+  <button class="filter-btn" onclick="filter('Tech', this)">💻 Tech</button>
+  <button class="filter-btn" onclick="filter('Movies', this)">🎬 Movies</button>
+  <button class="filter-btn" onclick="filter('Science', this)">🔬 Science</button>
+  <button class="filter-btn" onclick="filter('History', this)">📜 History</button>
+  <button class="filter-btn" onclick="filter('Trending', this)">📡 Trending</button>
+  <button class="filter-btn" onclick="filter('failed', this)">❌ Failed</button>
   <input class="search-box" id="search" type="text" placeholder="Search videos…" oninput="render()" />
 </div>
 
@@ -430,7 +439,11 @@
     let videos = allVideos;
 
     if (activeFilter !== 'all') {
-      videos = videos.filter(v => v.status === activeFilter || v.mode === activeFilter);
+      videos = videos.filter(v =>
+        v.status === activeFilter ||
+        v.mode === activeFilter ||
+        (v.category || '') === activeFilter
+      );
     }
     if (query) {
       videos = videos.filter(v =>
@@ -456,11 +469,20 @@
 
   function cardHTML(v) {
     const isSuccess = v.status === 'success';
-    const modeBadge = v.status === 'failed'
-      ? `<span class="badge badge-failed">Failed</span>`
-      : v.mode === 'educational'
-        ? `<span class="badge badge-educational">Educational</span>`
-        : `<span class="badge badge-trending">Trending</span>`;
+    const CATEGORY_ICONS = {
+      'Indian Mythology': '🕉️', 'Sports': '🏆', 'Tech': '💻',
+      'Movies': '🎬', 'Science': '🔬', 'History': '📜',
+      'Business': '💼', 'Psychology': '🧠', 'Motivation': '🔥', 'Trending': '📡',
+    };
+    const modeColors = {
+      'mythology': 'mythology', 'story': 'story', 'sports': 'sports',
+      'movie': 'movie', 'educational': 'educational', 'trending': 'trending',
+    };
+    const cat = v.category || '';
+    const icon = CATEGORY_ICONS[cat] || '📺';
+    const badgeClass = v.status === 'failed' ? 'failed' : (modeColors[v.mode] || 'trending');
+    const badgeLabel = cat || v.mode;
+    const modeBadge = `<span class="badge badge-${badgeClass}">${icon} ${escHtml(badgeLabel)}</span>`;
 
     const thumb = v.video_id
       ? `<img src="https://img.youtube.com/vi/${v.video_id}/hqdefault.jpg" style="width:100%;height:100%;object-fit:cover;" loading="lazy" />`

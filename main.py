@@ -45,16 +45,17 @@ def run():
 
     # Step 1: Select today's mode and topic
     selection = select_topic_and_mode()
-    mode = selection["mode"]
+    mode      = selection["mode"]
+    category  = selection.get("category", "General")
     wikipedia_summary = selection.get("wikipedia_summary")
-    topic = selection["topic"] if mode == "educational" else get_trending_topic()
-    logger.info(f"Mode: {mode} | Topic: {topic}")
+    topic     = selection["topic"] if mode != "trending" else get_trending_topic()
+    logger.info(f"Category: {category} | Mode: {mode} | Topic: {topic}")
 
     # Step 2: Research topic across Google News, Reddit, HackerNews, Wikipedia
     research = research_topic(topic)
 
     # Step 3: Generate script grounded in real research
-    script = generate_script(topic, mode=mode, wikipedia_summary=wikipedia_summary, research=research)
+    script = generate_script(topic, mode=mode, wikipedia_summary=wikipedia_summary, research=research, category=category)
 
     # Step 4: Fetch background media (video clip > image > generated)
     bg = fetch_background(topic, run_dir)
@@ -90,6 +91,7 @@ def run():
         title=script["title"],
         youtube_url=url,
         tags=script["tags"],
+        category=category,
     )
 
     logger.info(f"=== Done! Video live at: {url} ===")

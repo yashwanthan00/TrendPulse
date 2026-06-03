@@ -12,9 +12,22 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-def generate_script(topic: str, mode: str = "trending", wikipedia_summary: str = None, research: dict = None) -> dict:
+def generate_script(topic: str, mode: str = "trending", wikipedia_summary: str = None, research: dict = None, category: str = None) -> dict:
     """Returns dict: title, description, tags, slides, mode."""
-    prompt = _educational_prompt(topic, wikipedia_summary, research) if mode == "educational" else _trending_prompt(topic, research)
+    prompts = {
+        "mythology": _mythology_prompt,
+        "story":     _story_prompt,
+        "sports":    _sports_prompt,
+        "movie":     _movie_prompt,
+        "trending":  _trending_prompt,
+        "educational": _educational_prompt,
+    }
+    prompt_fn = prompts.get(mode, _educational_prompt)
+
+    if mode in ("educational", "mythology", "story", "sports", "movie"):
+        prompt = prompt_fn(topic, wikipedia_summary, research)
+    else:
+        prompt = prompt_fn(topic, research)
 
     if os.getenv("GROQ_API_KEY"):
         try:
@@ -68,6 +81,136 @@ def _generate_with_gemini(prompt: str, topic: str, mode: str) -> dict:
 
 
 # ── Prompts ───────────────────────────────────────────────────────────────────
+
+def _mythology_prompt(topic: str, wikipedia_summary: str = None, research: dict = None) -> str:
+    return f"""Write a CAPTIVATING Indian mythology script about: "{topic}"
+
+You are an expert storyteller who brings ancient Indian stories to life. Your style blends
+the gravitas of the original texts with modern cinematic storytelling — like a documentary
+narrator meets a campfire storyteller.
+
+NARRATIVE STRUCTURE:
+- SLIDE_1 (THE HOOK): Open with the most dramatic, spine-tingling moment of this story. Drop the viewer straight into the action. Use vivid imagery. Make them feel they are THERE. 2 sentences.
+- SLIDE_2 (THE BACKSTORY): Give the essential divine/cosmic context. Why did this event happen? What forces were at play? Reference specific characters, powers, or prophecies. 2 sentences.
+- SLIDE_3 (THE TURNING POINT): The moment everything changed. The sacrifice, the battle, the curse, the revelation. Make it visceral and emotional. 2 sentences.
+- SLIDE_4 (THE DEEPER MEANING): What does this story teach us that is STILL relevant today? Connect ancient wisdom to modern life. This should feel like a profound insight. 2 sentences.
+- SLIDE_5 (THE CTA): End with a question that sparks debate in the comments. Then: "Follow @yeah_shh for more untold stories from India's greatest epics." 2 sentences.
+
+WRITING RULES:
+- Use the original Sanskrit names (Arjuna, not Arjun; Krishna, Dharma, Karma)
+- Refer to specific events, weapons, divine powers by their exact names
+- Write with reverence but also wonder — these stories deserve awe
+- Use present tense for dramatic moments ("Arjuna raises his bow...")
+- Avoid disrespecting any deity or tradition
+- 100% original narrative — inspired by scriptures, not copied
+
+OUTPUT FORMAT (return ONLY this, no markdown):
+TITLE: <dramatic title that creates curiosity — e.g. "The Secret Weapon Arjuna Was Never Supposed to Have">
+DESCRIPTION: <3 sentences. Hook, what the story reveals, why it matters today. End with #IndianMythology #Hinduism #yeah_shh>
+TAGS: <10 tags: mythology, Indian, Hindu, specific character names, epic, etc.>
+SLIDE_1: <dramatic opening>
+SLIDE_2: <backstory>
+SLIDE_3: <turning point>
+SLIDE_4: <deeper meaning>
+SLIDE_5: <CTA>"""
+
+
+def _story_prompt(topic: str, wikipedia_summary: str = None, research: dict = None) -> str:
+    research_block = f"\n\n{research['research_text']}\n" if research and research.get("research_text") else ""
+    wiki_block = f"\nFACTUAL REFERENCE: {wikipedia_summary[:300]}\n" if wikipedia_summary else ""
+    return f"""Write a COMPELLING narrative story script about: "{topic}"{research_block}{wiki_block}
+
+You are a master documentary narrator — think Netflix documentary meets BBC storytelling.
+Every fact feels like a revelation. Every moment feels cinematic.
+
+NARRATIVE STRUCTURE:
+- SLIDE_1 (THE HOOK): Start at the most dramatic moment of the story — in medias res. Drop the viewer into the tension immediately. 2 sentences.
+- SLIDE_2 (THE ORIGINS): Where did this all begin? Set the scene with specific details — year, place, circumstances. 2 sentences.
+- SLIDE_3 (THE STRUGGLE): What obstacles, failures, or impossible odds did the subject face? Be specific. Make the viewer feel the weight of it. 2 sentences.
+- SLIDE_4 (THE TRIUMPH/TWIST): The moment of victory, tragedy, or shocking revelation. This is the emotional peak. 2 sentences.
+- SLIDE_5 (THE LEGACY + CTA): What did this story leave behind? Why does it still matter? Then invite comments + "Follow @yeah_shh for more incredible stories." 2 sentences.
+
+WRITING RULES:
+- Use specific dates, names, places — details make stories credible
+- Write in active, present tense where possible for immediacy
+- One specific number or statistic per slide
+- Emotional but factually grounded
+- 100% original narrative
+
+OUTPUT FORMAT (return ONLY this, no markdown):
+TITLE: <cinematic title that sounds like a documentary — under 60 chars>
+DESCRIPTION: <3 sentences. Story hook, what's revealed, why it's inspiring. End with #history #truestory #yeah_shh>
+TAGS: <10 relevant tags>
+SLIDE_1: <dramatic opening>
+SLIDE_2: <origins>
+SLIDE_3: <struggle>
+SLIDE_4: <triumph/twist>
+SLIDE_5: <legacy + CTA>"""
+
+
+def _sports_prompt(topic: str, wikipedia_summary: str = None, research: dict = None) -> str:
+    research_block = f"\n\n{research['research_text']}\n" if research and research.get("research_text") else ""
+    return f"""Write a HIGH-ENERGY sports script about: "{topic}"{research_block}
+
+You are the most passionate sports commentator meets analytical expert. Your writing
+makes non-sports fans care and sports fans go crazy.
+
+NARRATIVE STRUCTURE:
+- SLIDE_1 (THE HOOK): Start with the most jaw-dropping stat, record, or moment related to this topic. Something that makes fans say "I never knew that." 2 sentences.
+- SLIDE_2 (THE CONTEXT): Why is this athlete/team/event extraordinary? Give the specific numbers — records broken, odds overcome, years of struggle. 2 sentences.
+- SLIDE_3 (THE SECRET): What does this athlete do differently that others don't? Training secret, mental edge, technique, sacrifice. Be specific. 2 sentences.
+- SLIDE_4 (THE IMPACT): How has this changed the sport forever? What do today's players owe to this? 2 sentences.
+- SLIDE_5 (THE CTA): Ask a polarizing sports debate question to drive comments. Then: "Follow @yeah_shh for daily sports breakdowns." 2 sentences.
+
+WRITING RULES:
+- Use exact statistics, match scores, world records where relevant
+- Write with infectious energy — exclamation where natural
+- Reference specific matches, tournaments, years
+- Accessible to both hardcore fans and casual viewers
+- 100% original content
+
+OUTPUT FORMAT (return ONLY this, no markdown):
+TITLE: <punchy sports title with a number or superlative — under 60 chars>
+DESCRIPTION: <3 sentences. Stat hook, analysis, debate question. End with #sports #cricket #football #yeah_shh>
+TAGS: <10 tags including sport name, athlete name, tournament, etc.>
+SLIDE_1: <jaw-dropping hook>
+SLIDE_2: <context with numbers>
+SLIDE_3: <the secret>
+SLIDE_4: <the impact>
+SLIDE_5: <debate CTA>"""
+
+
+def _movie_prompt(topic: str, wikipedia_summary: str = None, research: dict = None) -> str:
+    research_block = f"\n\n{research['research_text']}\n" if research and research.get("research_text") else ""
+    return f"""Write an ENGAGING movie/entertainment script about: "{topic}"{research_block}
+
+You are a film critic meets pop culture analyst — you love movies deeply and know
+how to make anyone excited about cinema.
+
+NARRATIVE STRUCTURE:
+- SLIDE_1 (THE HOOK): Start with the most surprising behind-the-scenes fact, box office record, or hidden detail about this film/director. Something casual viewers don't know. 2 sentences.
+- SLIDE_2 (THE GENIUS): What makes this film/director technically or artistically brilliant? Reference specific scenes, cinematography, music, writing. 2 sentences.
+- SLIDE_3 (THE HIDDEN LAYER): A deeper meaning, symbolism, or Easter egg most people completely missed. This should make viewers want to rewatch. 2 sentences.
+- SLIDE_4 (THE IMPACT): How did this film change cinema, culture, or the industry forever? Specific examples. 2 sentences.
+- SLIDE_5 (THE CTA): Ask viewers what their favourite scene/moment is. Then: "Follow @yeah_shh for daily film breakdowns and hidden details." 2 sentences.
+
+WRITING RULES:
+- Reference specific scenes, characters, directors by name
+- Mix film analysis with emotional connection
+- Include box office numbers, awards, or cultural impact stats
+- Accessible to casual movie fans, not just cinephiles
+- 100% original analysis — not copied from reviews
+
+OUTPUT FORMAT (return ONLY this, no markdown):
+TITLE: <intriguing movie title with "Hidden", "Secret", "Truth" or a question — under 60 chars>
+DESCRIPTION: <3 sentences. Hook, what's revealed, why fans should watch. End with #movies #cinema #bollywood #yeah_shh>
+TAGS: <10 tags including film title, director, genre, language>
+SLIDE_1: <surprising hook>
+SLIDE_2: <the genius>
+SLIDE_3: <hidden layer>
+SLIDE_4: <the impact>
+SLIDE_5: <CTA>"""
+
 
 def _trending_prompt(topic: str, research: dict = None) -> str:
     research_block = f"\n\n{research['research_text']}\n" if research and research.get("research_text") else ""

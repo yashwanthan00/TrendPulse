@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 HISTORY_FILE = os.path.join("docs", "history.json")
 
 
-def log_run(topic: str, mode: str, title: str, youtube_url: str, tags: list, status: str = "success", error: str = ""):
+def log_run(topic: str, mode: str, title: str, youtube_url: str, tags: list, status: str = "success", error: str = "", category: str = "General"):
     os.makedirs("docs", exist_ok=True)
 
     history = _load()
@@ -16,6 +16,7 @@ def log_run(topic: str, mode: str, title: str, youtube_url: str, tags: list, sta
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "topic": topic,
         "mode": mode,
+        "category": category,
         "title": title,
         "youtube_url": youtube_url,
         "video_id": _extract_id(youtube_url),
