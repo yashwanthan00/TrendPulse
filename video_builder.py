@@ -1,19 +1,20 @@
 """
-Builds the final MP4 with:
-  - Ken Burns zoom/pan on image backgrounds
-  - Looping video clips for video backgrounds
-  - Animated text: fade-in + slide-up per slide
-  - Crossfade transitions between slides
-  - Dark overlay for readability
+Professional YouTube video builder.
+Looks like a real broadcast/documentary — NOT a presentation.
+
+Visual design:
+  - Cinematic Pexels video or Ken Burns image background
+  - Vignette + colour grade overlay
+  - Slide 1: Full-screen title card with category badge
+  - Slides 2-4: Lower-third text box (slides in from left like news)
+  - Slide 5: Branded CTA card with subscribe animation
+  - Progress bar across the top
+  - Channel handle watermark bottom-right
 """
 
 import os
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
-
-# MoviePy 1.0.3 uses ANTIALIAS which was removed in Pillow 10+
-if not hasattr(Image, "ANTIALIAS"):
-    Image.ANTIALIAS = Image.LANCZOS
 from moviepy.editor import (
     VideoFileClip, ImageClip, AudioFileClip,
     concatenate_videoclips, CompositeVideoClip,
@@ -22,227 +23,323 @@ from moviepy.editor import (
 from font_manager import get_font
 import logging
 
+# Pillow 10+ compatibility
+if not hasattr(Image, "ANTIALIAS"):
+    Image.ANTIALIAS = Image.LANCZOS
+
 logger = logging.getLogger(__name__)
 
-VIDEO_SIZE = (1280, 720)
-W, H = VIDEO_SIZE
-FPS = 24
-TRANSITION_DURATION = 0.4   # crossfade between slides
-TEXT_FADE_IN = 0.5           # text fade-in duration
-MAX_CHARS = 40
+VIDEO_SIZE   = (1280, 720)
+W, H         = VIDEO_SIZE
+FPS          = 24
+CHANNEL      = "@yeah_shh"
+ACCENT       = (99, 102, 241)      # indigo
+ACCENT_DARK  = (49,  46, 129)
+WHITE        = (255, 255, 255)
+BLACK        = (0,   0,   0)
 
 
-# ── Public entry point ────────────────────────────────────────────────────────
+# ── Entry point ───────────────────────────────────────────────────────────────
 
-def build_video(slides: list, audio_paths: list, bg: dict, output_path: str) -> str:
-    """
-    bg: {'type': 'video'|'image', 'path': str}
-    Assembles all slide clips into a single MP4. Returns output_path.
-    """
+def build_video(slides: list, audio_paths: list, bg: dict, output_path: str, category: str = "") -> str:
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
 
     clips = []
-    for i, (text, audio_path) in enumerate(zip(slides, audio_paths)):
-        clip = _build_slide(text, audio_path, bg, i, len(slides))
+    total = len(slides)
+    for i, (text, audio) in enumerate(zip(slides, audio_paths)):
+        if i == 0:
+            clip = _title_card(text, audio, bg, category, total)
+        elif i == total - 1:
+            clip = _cta_card(text, audio, bg, total)
+        else:
+            clip = _content_card(text, audio, bg, i, total)
         clips.append(clip)
 
-    # Crossfade transitions
-    final = _crossfade_concat(clips)
-
-    final.write_videofile(
-        output_path,
-        fps=FPS,
-        codec="libx264",
-        audio_codec="aac",
-        logger=None,
-        threads=2,
-    )
+    final = _crossfade(clips)
+    final.write_videofile(output_path, fps=FPS, codec="libx264",
+                          audio_codec="aac", logger=None, threads=2)
     logger.info(f"Video saved: {output_path}")
     return output_path
 
 
-# ── Slide builder ─────────────────────────────────────────────────────────────
+# ── Card builders ─────────────────────────────────────────────────────────────
 
-def _build_slide(text: str, audio_path: str, bg: dict, index: int, total: int) -> CompositeVideoClip:
-    audio = AudioFileClip(audio_path)
-    duration = audio.duration + 0.3
+def _title_card(text: str, audio_path: str, bg: dict, category: str, total: int) -> CompositeVideoClip:
+    """Slide 1 — full-screen dramatic title."""
+    audio    = AudioFileClip(audio_path)
+    duration = audio.duration + 0.4
+    bg_clip  = _background(bg, duration)
 
-    # 1. Background layer
+    def frame(t):
+        img = _base_frame(bg_clip, t, duration, 1, total)
+        draw = ImageDraw.Draw(img)
+
+        # Category badge top-centre
+        if category:
+            badge_font = get_font(22, "bold")
+            badge_text = f"  {category.upper()}  "
+            bb = draw.textbbox((0,0), badge_text, font=badge_font)
+            bw = bb[2]-bb[0]+20
+            bx = (W - bw) // 2
+            alpha = min(1.0, t / 0.3)
+            br = int(80 * alpha); bg_a = int(60 * alpha)
+            draw.rounded_rectangle([bx, 36, bx+bw, 72], radius=8,
+                                   fill=(*ACCENT, bg_a), outline=(*ACCENT, br))
+            draw.text((bx+10, 42), badge_text, font=badge_font,
+                      fill=(*WHITE, int(255*alpha)))
+
+        # Main title — big, bold, centred
+        alpha  = min(1.0, t / 0.5)
+        offset = int(30 * (1 - alpha))
+        font   = get_font(58, "bold")
+        lines  = _wrap(text, 32)
+        lh     = 70
+        y0     = (H - len(lines)*lh) // 2 + offset
+        for i2, line in enumerate(lines):
+            bb  = draw.textbbox((0,0), line, font=font)
+            x   = (W - (bb[2]-bb[0])) // 2
+            y   = y0 + i2*lh
+            # soft shadow
+            draw.text((x+3, y+3), line, font=font, fill=(0,0,0,int(180*alpha)))
+            draw.text((x,   y  ), line, font=font, fill=(*WHITE, int(255*alpha)))
+
+        return np.array(img.convert("RGB"))
+
+    return _make_clip(frame, duration, audio)
+
+
+def _content_card(text: str, audio_path: str, bg: dict, idx: int, total: int) -> CompositeVideoClip:
+    """Slides 2-4 — lower-third news style with slide-in animation."""
+    audio    = AudioFileClip(audio_path)
+    duration = audio.duration + 0.4
+    bg_clip  = _background(bg, duration)
+
+    def frame(t):
+        img  = _base_frame(bg_clip, t, duration, idx+1, total)
+        draw = ImageDraw.Draw(img)
+
+        # Slide-in progress: 0→1 over 0.4s
+        alpha   = min(1.0, t / 0.4)
+        slide_x = int((1 - alpha) * -W * 0.6)   # slides in from left
+
+        # Lower-third box (bottom 38% of screen)
+        box_y = int(H * 0.62)
+        box_h = H - box_y
+
+        # Gradient box
+        box = Image.new("RGBA", (W, box_h), (0,0,0,0))
+        bd  = ImageDraw.Draw(box)
+        for y in range(box_h):
+            a = int(200 * (y / box_h))
+            bd.line([(0,y),(W,y)], fill=(0,0,0,a))
+        img = Image.alpha_composite(img.convert("RGBA"), Image.new("RGBA", (W,H), (0,0,0,0)))
+
+        # Re-get full frame since we need composite
+        img = _base_frame(bg_clip, t, duration, idx+1, total)
+        base_arr = np.array(img.convert("RGBA"))
+        overlay  = np.zeros_like(base_arr)
+        for y2 in range(box_y, H):
+            a2 = int(210 * ((y2 - box_y) / (H - box_y)))
+            overlay[y2,:] = [0, 0, 0, a2]
+        combined = Image.alpha_composite(
+            Image.fromarray(base_arr),
+            Image.fromarray(overlay.astype(np.uint8))
+        ).convert("RGB")
+        img = combined
+
+        draw = ImageDraw.Draw(img)
+
+        # Accent line
+        accent_a = int(255 * alpha)
+        draw.rectangle([slide_x, box_y, slide_x + 5, H],
+                       fill=(*ACCENT, accent_a))
+
+        # Text
+        font  = get_font(40, "bold")
+        lines = _wrap(text, 48)
+        lh    = 52
+        total_h = len(lines) * lh
+        y0 = box_y + (box_h - total_h) // 2 + 10
+        for i2, line in enumerate(lines):
+            tx = slide_x + 24
+            ty = y0 + i2 * lh
+            draw.text((tx+2, ty+2), line, font=font, fill=(0,0,0))
+            draw.text((tx,   ty  ), line, font=font, fill=WHITE)
+
+        return np.array(img)
+
+    return _make_clip(frame, duration, audio)
+
+
+def _cta_card(text: str, audio_path: str, bg: dict, total: int) -> CompositeVideoClip:
+    """Last slide — branded CTA with subscribe button."""
+    audio    = AudioFileClip(audio_path)
+    duration = audio.duration + 0.4
+    bg_clip  = _background(bg, duration)
+
+    def frame(t):
+        img  = _base_frame(bg_clip, t, duration, total, total)
+        draw = ImageDraw.Draw(img)
+        alpha = min(1.0, t / 0.5)
+
+        # Dark centre panel
+        panel_w, panel_h = 700, 260
+        px = (W - panel_w) // 2
+        py = (H - panel_h) // 2
+        panel = Image.new("RGBA", (W, H), (0,0,0,0))
+        pd    = ImageDraw.Draw(panel)
+        pd.rounded_rectangle([px, py, px+panel_w, py+panel_h], radius=18,
+                             fill=(0,0,0, int(190*alpha)))
+        pd.rounded_rectangle([px, py, px+panel_w, py+panel_h], radius=18,
+                             outline=(*ACCENT, int(180*alpha)), width=2)
+        img = Image.alpha_composite(img.convert("RGBA"), panel).convert("RGB")
+        draw = ImageDraw.Draw(img)
+
+        # Subscribe button
+        btn_w, btn_h = 260, 52
+        bx = (W - btn_w) // 2
+        by = py + 28
+        draw.rounded_rectangle([bx, by, bx+btn_w, by+btn_h], radius=26,
+                               fill=(200, 0, 0))
+        sub_font = get_font(22, "bold")
+        draw.text((bx + btn_w//2 - 55, by + 14), "▶  Subscribe", font=sub_font, fill=WHITE)
+
+        # Channel handle
+        h_font = get_font(36, "bold")
+        handle = CHANNEL
+        hb     = draw.textbbox((0,0), handle, font=h_font)
+        hx     = (W - (hb[2]-hb[0])) // 2
+        draw.text((hx+2, py+102), handle, font=h_font, fill=(0,0,0))
+        draw.text((hx,   py+100), handle, font=h_font, fill=(*ACCENT, int(255*alpha)))
+
+        # CTA text
+        cta_font  = get_font(26, "regular")
+        cta_lines = _wrap(text, 42)
+        cy = py + 155
+        for line in cta_lines:
+            cb  = draw.textbbox((0,0), line, font=cta_font)
+            cx2 = (W - (cb[2]-cb[0])) // 2
+            draw.text((cx2, cy), line, font=cta_font,
+                      fill=(*WHITE, int(200*alpha)))
+            cy += 34
+
+        return np.array(img)
+
+    return _make_clip(frame, duration, audio)
+
+
+# ── Background engine ─────────────────────────────────────────────────────────
+
+def _background(bg: dict, duration: float):
     if bg["type"] == "video":
-        bg_clip = _video_background(bg["path"], duration)
-    else:
-        bg_clip = _ken_burns(bg["path"], duration, direction=index % 2)
-
-    # 2. Dark overlay
-    dark = ColorClip(VIDEO_SIZE, color=[0, 0, 0]).set_duration(duration).set_opacity(0.55)
-
-    # 3. Animated text overlay
-    text_clip = _animated_text(text, duration, font_size=48 if index == 0 else 42)
-
-    # 4. Slide number indicator (small, bottom-left)
-    num_clip = _slide_number(index + 1, total, duration)
-
-    composite = CompositeVideoClip([bg_clip, dark, text_clip, num_clip]).set_audio(audio)
-    return composite.set_fps(FPS)
+        return _video_bg(bg["path"], duration)
+    return _ken_burns(bg["path"], duration)
 
 
-# ── Background layers ─────────────────────────────────────────────────────────
-
-def _ken_burns(img_path: str, duration: float, direction: int = 0) -> VideoClip:
-    """Smooth zoom-in or zoom-out with subtle pan."""
-    img = Image.open(img_path).convert("RGB")
-    # Slightly oversized so we have room to zoom/pan
-    big = img.resize((int(W * 1.15), int(H * 1.15)), Image.LANCZOS)
-    arr = np.array(big)
-    bh, bw = arr.shape[:2]
-
-    def make_frame(t):
-        progress = t / duration
-        if direction == 0:
-            # zoom in: start wide, end tight
-            scale = 1.15 - 0.1 * progress
-        else:
-            # zoom out: start tight, end wide
-            scale = 1.05 + 0.1 * progress
-
-        cw = int(W * scale)
-        ch = int(H * scale)
-        cw = min(cw, bw)
-        ch = min(ch, bh)
-
-        # Subtle pan: drift diagonally
-        x0 = int((bw - cw) * (0.3 + 0.4 * progress))
-        y0 = int((bh - ch) * (0.2 + 0.3 * progress))
-        x0 = max(0, min(x0, bw - cw))
-        y0 = max(0, min(y0, bh - ch))
-
-        cropped = arr[y0:y0 + ch, x0:x0 + cw]
-        return np.array(Image.fromarray(cropped).resize((W, H), Image.LANCZOS))
-
-    return VideoClip(make_frame, duration=duration).set_fps(FPS)
-
-
-def _video_background(video_path: str, duration: float) -> VideoFileClip:
-    """Loop / trim a video clip to match duration."""
-    clip = VideoFileClip(video_path).without_audio().resize(VIDEO_SIZE)
+def _video_bg(path: str, duration: float) -> VideoFileClip:
+    clip = VideoFileClip(path).without_audio().resize(VIDEO_SIZE)
     if clip.duration < duration:
-        # Loop
+        from moviepy.editor import concatenate_videoclips as cc
         loops = int(duration / clip.duration) + 2
-        from moviepy.editor import concatenate_videoclips
-        clip = concatenate_videoclips([clip] * loops).subclip(0, duration)
+        clip  = cc([clip] * loops).subclip(0, duration)
     else:
         clip = clip.subclip(0, duration)
     return clip
 
 
-# ── Text overlay ──────────────────────────────────────────────────────────────
+def _ken_burns(path: str, duration: float) -> VideoClip:
+    img   = Image.open(path).convert("RGB")
+    big   = img.resize((int(W*1.15), int(H*1.15)), Image.LANCZOS)
+    arr   = np.array(big)
+    bh, bw = arr.shape[:2]
 
-def _animated_text(text: str, duration: float, font_size: int = 42) -> VideoClip:
-    """
-    Text that fades in and slides up over TEXT_FADE_IN seconds.
-    Rendered as a VideoClip with transparent background composited onto the scene.
-    """
-    font = get_font(font_size, "bold")
-    lines = _wrap_text(text)
-    line_h = font_size + 14
-    total_text_h = len(lines) * line_h
-    y_center = (H - total_text_h) // 2
-    SLIDE_OFFSET = 22  # px to slide up from
+    def frame(t):
+        p  = t / duration
+        scale = 1.15 - 0.10 * p
+        cw = min(int(W * scale), bw)
+        ch = min(int(H * scale), bh)
+        x0 = max(0, min(int((bw-cw) * 0.4 * p), bw-cw))
+        y0 = max(0, min(int((bh-ch) * 0.3 * p), bh-ch))
+        return np.array(Image.fromarray(arr[y0:y0+ch, x0:x0+cw]).resize((W,H), Image.LANCZOS))
 
-    def make_frame(t):
-        alpha = min(1.0, t / TEXT_FADE_IN)
-        offset = int(SLIDE_OFFSET * (1 - alpha))
-
-        # Transparent RGBA canvas
-        canvas = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(canvas)
-
-        for i, line in enumerate(lines):
-            bbox = draw.textbbox((0, 0), line, font=font)
-            tw = bbox[2] - bbox[0]
-            x = (W - tw) // 2
-            y = y_center + i * line_h + offset
-
-            # Subtle text shadow
-            shadow_a = int(200 * alpha)
-            draw.text((x + 2, y + 2), line, font=font, fill=(0, 0, 0, shadow_a))
-            # Main text
-            text_a = int(255 * alpha)
-            draw.text((x, y), line, font=font, fill=(255, 255, 255, text_a))
-
-        # Convert to RGB + mask
-        rgb = np.array(canvas.convert("RGB"))
-        mask = np.array(canvas.split()[3]) / 255.0  # alpha channel as float mask
-        return rgb, mask
-
-    # Build clip frame by frame
-    def rgb_frame(t):
-        return make_frame(t)[0]
-
-    def mask_frame(t):
-        return make_frame(t)[1]
-
-    clip = VideoClip(rgb_frame, duration=duration).set_fps(FPS)
-    clip = clip.set_mask(VideoClip(mask_frame, duration=duration, ismask=True).set_fps(FPS))
-    return clip
+    return VideoClip(frame, duration=duration).set_fps(FPS)
 
 
-def _slide_number(current: int, total: int, duration: float) -> VideoClip:
-    """Small slide counter in bottom-left corner."""
-    font = get_font(18, "regular")
+# ── Base frame (bg + vignette + progress + watermark) ────────────────────────
 
-    def make_frame(t):
-        alpha = min(1.0, t / TEXT_FADE_IN)
-        canvas = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(canvas)
-        label = f"{current} / {total}"
-        a = int(160 * alpha)
-        draw.text((28, H - 38), label, font=font, fill=(200, 200, 200, a))
-        rgb = np.array(canvas.convert("RGB"))
-        mask = np.array(canvas.split()[3]) / 255.0
-        return rgb, mask
+def _base_frame(bg_clip, t: float, duration: float, slide_num: int, total: int) -> Image.Image:
+    # Background
+    raw = bg_clip.get_frame(min(t, bg_clip.duration - 0.01))
+    img = Image.fromarray(raw.astype("uint8")).convert("RGBA")
 
-    def rgb_f(t): return make_frame(t)[0]
-    def msk_f(t): return make_frame(t)[1]
+    # Subtle colour grade — slight cool blue tint
+    grade = Image.new("RGBA", (W, H), (10, 20, 40, 40))
+    img   = Image.alpha_composite(img, grade)
 
-    clip = VideoClip(rgb_f, duration=duration).set_fps(FPS)
-    clip = clip.set_mask(VideoClip(msk_f, duration=duration, ismask=True).set_fps(FPS))
-    return clip
+    # Vignette
+    img = _apply_vignette(img)
+
+    img = img.convert("RGB")
+    draw = ImageDraw.Draw(img)
+
+    # Progress bar at top
+    progress = slide_num / total
+    draw.rectangle([0, 0, W, 4], fill=(30, 30, 50))
+    draw.rectangle([0, 0, int(W * progress), 4], fill=ACCENT)
+
+    # Channel watermark bottom-right
+    wm_font = get_font(18, "regular")
+    wm_text = CHANNEL
+    wb = draw.textbbox((0,0), wm_text, font=wm_font)
+    wx = W - (wb[2]-wb[0]) - 16
+    draw.text((wx+1, H-30), wm_text, font=wm_font, fill=(0,0,0,180))
+    draw.text((wx,   H-31), wm_text, font=wm_font, fill=(200,200,200,160))
+
+    return img
+
+
+def _apply_vignette(img: Image.Image) -> Image.Image:
+    vignette = Image.new("RGBA", (W, H), (0,0,0,0))
+    draw     = ImageDraw.Draw(vignette)
+    steps    = 60
+    for i in range(steps):
+        alpha = int(130 * ((steps - i) / steps) ** 2.5)
+        margin = i * 6
+        draw.rectangle([margin, margin, W-margin, H-margin],
+                      outline=(0,0,0,alpha), width=1)
+    return Image.alpha_composite(img.convert("RGBA"), vignette)
 
 
 # ── Transitions ───────────────────────────────────────────────────────────────
 
-def _crossfade_concat(clips: list) -> VideoClip:
-    """Concatenate clips with crossfade transitions between each."""
+def _crossfade(clips: list) -> VideoClip:
+    TD = 0.35
     if len(clips) == 1:
         return clips[0]
-
-    result = clips[0].crossfadeout(TRANSITION_DURATION)
+    result = clips[0].crossfadeout(TD)
     for i in range(1, len(clips)):
-        next_clip = clips[i]
-        if i < len(clips) - 1:
-            next_clip = next_clip.crossfadeout(TRANSITION_DURATION)
-        next_clip = next_clip.crossfadein(TRANSITION_DURATION)
-        result = concatenate_videoclips(
-            [result, next_clip],
-            padding=-TRANSITION_DURATION,
-            method="compose",
-        )
+        nxt = clips[i].crossfadein(TD)
+        if i < len(clips)-1:
+            nxt = nxt.crossfadeout(TD)
+        result = concatenate_videoclips([result, nxt], padding=-TD, method="compose")
     return result
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _wrap_text(text: str) -> list:
+def _make_clip(frame_fn, duration: float, audio: AudioFileClip) -> CompositeVideoClip:
+    clip = VideoClip(frame_fn, duration=duration).set_fps(FPS).set_audio(audio)
+    return clip
+
+
+def _wrap(text: str, max_chars: int = 40) -> list:
     words = text.split()
-    lines, current = [], ""
-    for word in words:
-        if len(current) + len(word) + 1 <= MAX_CHARS:
-            current = f"{current} {word}".strip()
+    lines, cur = [], ""
+    for w in words:
+        if len(cur) + len(w) + 1 <= max_chars:
+            cur = f"{cur} {w}".strip()
         else:
-            if current:
-                lines.append(current)
-            current = word
-    if current:
-        lines.append(current)
+            if cur: lines.append(cur)
+            cur = w
+    if cur: lines.append(cur)
     return lines

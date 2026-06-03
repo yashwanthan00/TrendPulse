@@ -74,7 +74,7 @@ def run():
 
     # Step 6: Build video
     video_path = os.path.join(run_dir, "video.mp4")
-    build_video(script["slides"], audio_paths, bg, video_path)
+    build_video(script["slides"], audio_paths, bg, video_path, category=category)
 
     # Step 7: Upload to YouTube
     url = upload_video(
