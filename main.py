@@ -17,6 +17,7 @@ from video_builder import build_video
 from copyright_checker import run_full_audit
 from youtube_uploader import upload_video
 from video_logger import log_run, log_failure
+from shorts_pipeline import run_shorts_pipeline
 
 load_dotenv()
 
@@ -89,6 +90,16 @@ def run():
 
     logger.info(f"=== Done! Video live at: {url} ===")
     print(f"\nVideo uploaded: {url}")
+
+    # Step 9: Create and upload a Short from existing channel videos
+    logger.info("=== Starting Shorts pipeline ===")
+    shorts_dir = os.path.join(run_dir, "shorts")
+    short_url = run_shorts_pipeline(shorts_dir)
+    if short_url:
+        logger.info(f"Short uploaded: {short_url}")
+        print(f"Short uploaded: {short_url}")
+    else:
+        logger.warning("Shorts pipeline did not produce a video")
 
 
 if __name__ == "__main__":

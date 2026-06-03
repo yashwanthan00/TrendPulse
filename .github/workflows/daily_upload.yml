@@ -49,7 +49,7 @@ jobs:
         run: |
           git config user.name "TrendPulse Bot"
           git config user.email "yashwanthan00@gmail.com"
-          git add docs/history.json
+          git add docs/history.json docs/shorts_used.json 2>/dev/null || true
           git diff --staged --quiet || git commit -m "📊 Update dashboard history [$(date +'%Y-%m-%d')]"
           git push
 
