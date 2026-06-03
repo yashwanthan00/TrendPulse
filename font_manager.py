@@ -13,9 +13,11 @@ logger = logging.getLogger(__name__)
 FONTS_DIR = os.path.join(os.path.dirname(__file__), "assets", "fonts")
 
 # Roboto — Apache License 2.0, free for any use including commercial YouTube
+# Roboto variable font — covers all weights (Apache 2.0)
+FONT_URL = "https://raw.githubusercontent.com/google/fonts/main/ofl/roboto/Roboto%5Bwdth%2Cwght%5D.ttf"
 FONT_URLS = {
-    "regular": "https://github.com/google/fonts/raw/main/apache/roboto/static/Roboto-Regular.ttf",
-    "bold":    "https://github.com/google/fonts/raw/main/apache/roboto/static/Roboto-Bold.ttf",
+    "regular": FONT_URL,
+    "bold":    FONT_URL,
 }
 
 
