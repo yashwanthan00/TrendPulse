@@ -11,6 +11,10 @@ import logging
 import numpy as np
 from datetime import datetime, timezone
 from PIL import Image, ImageDraw, ImageFilter
+
+# MoviePy 1.0.3 uses ANTIALIAS which was removed in Pillow 10+
+if not hasattr(Image, "ANTIALIAS"):
+    Image.ANTIALIAS = Image.LANCZOS
 from moviepy.editor import (
     VideoFileClip, CompositeVideoClip, ImageClip,
     VideoClip, ColorClip, AudioFileClip,
