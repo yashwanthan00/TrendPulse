@@ -86,32 +86,34 @@ def _google_news(topic: str) -> list:
 # ── Source 2: Reddit ──────────────────────────────────────────────────────────
 
 def _reddit(topic: str) -> list:
+    """Use Reddit RSS feed — no auth needed, not blocked."""
     try:
-        url = "https://www.reddit.com/search.json"
-        params = {"q": topic, "sort": "hot", "limit": 8, "type": "link", "t": "week"}
-        resp = requests.get(url, headers=HEADERS, params=params, timeout=TIMEOUT)
+        encoded = requests.utils.quote(topic)
+        url = f"https://www.reddit.com/search.rss?q={encoded}&sort=hot&t=week"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (compatible; TrendPulse/1.0; +https://github.com/yashwanthan00/TrendPulse)",
+            "Accept": "application/rss+xml, application/xml, text/xml",
+        }
+        resp = requests.get(url, headers=headers, timeout=TIMEOUT)
         resp.raise_for_status()
-        posts = resp.json()["data"]["children"]
+
+        root = ET.fromstring(resp.content)
+        ns = {"atom": "http://www.w3.org/2005/Atom"}
+        entries = root.findall("atom:entry", ns)
 
         results = []
-        for p in posts[:5]:
-            d = p["data"]
-            title      = d.get("title", "").strip()
-            score      = d.get("score", 0)
-            subreddit  = d.get("subreddit", "")
-            selftext   = d.get("selftext", "")[:150].strip()
-            if title and score > 10:
-                results.append({
-                    "title":     title,
-                    "score":     score,
-                    "subreddit": subreddit,
-                    "snippet":   selftext,
-                })
+        for entry in entries[:5]:
+            title   = (entry.findtext("atom:title", "", ns) or "").strip()
+            content = (entry.findtext("atom:content", "", ns) or "").strip()
+            content = re.sub(r"<[^>]+>", "", content)[:150]
+            author  = (entry.findtext("atom:author/atom:name", "", ns) or "reddit").strip()
+            if title and len(title) > 10:
+                results.append({"title": title, "score": 0, "subreddit": author, "snippet": content})
 
-        logger.info(f"Reddit: {len(results)} posts")
+        logger.info(f"Reddit RSS: {len(results)} posts")
         return results
     except Exception as e:
-        logger.warning(f"Reddit failed: {e}")
+        logger.warning(f"Reddit RSS failed: {e}")
         return []
 
 

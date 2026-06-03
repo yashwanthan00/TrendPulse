@@ -121,16 +121,27 @@ def _pick_random_video(youtube) -> dict | None:
 
 # ── Downloader ────────────────────────────────────────────────────────────────
 
+COOKIES_FILE = "yt_cookies.txt"
+
+
 def _download_video(video_id: str, output_path: str) -> bool:
     try:
         import yt_dlp
+
         ydl_opts = {
             "format": "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best",
             "outtmpl": output_path,
             "quiet": True,
             "no_warnings": True,
             "merge_output_format": "mp4",
+            "extractor_args": {"youtube": {"skip": ["hls", "dash"]}},
         }
+
+        # Use cookies if available (prevents bot detection in CI)
+        if os.path.exists(COOKIES_FILE):
+            ydl_opts["cookiefile"] = COOKIES_FILE
+            logger.info("Using YouTube cookies for download")
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
         return os.path.exists(output_path)

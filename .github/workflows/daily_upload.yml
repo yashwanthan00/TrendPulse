@@ -34,6 +34,9 @@ jobs:
         run: |
           echo '${{ secrets.CLIENT_SECRETS }}' > client_secrets.json
           echo '${{ secrets.YOUTUBE_TOKEN }}' > token.json
+          if [ -n "${{ secrets.YOUTUBE_COOKIES }}" ]; then
+            echo '${{ secrets.YOUTUBE_COOKIES }}' > yt_cookies.txt
+          fi
 
       - name: Write .env
         run: |
