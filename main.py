@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 
 from topic_selector import select_topic_and_mode
 from trend_fetcher import get_trending_topic
+from content_researcher import research_topic
 from script_generator import generate_script
 from tts_generator import synthesize_slides
 from media_fetcher import fetch_background
@@ -49,13 +50,16 @@ def run():
     topic = selection["topic"] if mode == "educational" else get_trending_topic()
     logger.info(f"Mode: {mode} | Topic: {topic}")
 
-    # Step 2: Generate original AI script
-    script = generate_script(topic, mode=mode, wikipedia_summary=wikipedia_summary)
+    # Step 2: Research topic across Google News, Reddit, HackerNews, Wikipedia
+    research = research_topic(topic)
 
-    # Step 3: Fetch background media (video clip > image > generated)
+    # Step 3: Generate script grounded in real research
+    script = generate_script(topic, mode=mode, wikipedia_summary=wikipedia_summary, research=research)
+
+    # Step 4: Fetch background media (video clip > image > generated)
     bg = fetch_background(topic, run_dir)
 
-    # Step 4: Full copyright audit — halt on errors
+    # Step 5: Full copyright audit — halt on errors
     audit = run_full_audit(script, bg["provider"])
     script = audit["script"]
 

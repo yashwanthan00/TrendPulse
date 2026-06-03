@@ -12,9 +12,9 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-def generate_script(topic: str, mode: str = "trending", wikipedia_summary: str = None) -> dict:
+def generate_script(topic: str, mode: str = "trending", wikipedia_summary: str = None, research: dict = None) -> dict:
     """Returns dict: title, description, tags, slides, mode."""
-    prompt = _educational_prompt(topic, wikipedia_summary) if mode == "educational" else _trending_prompt(topic)
+    prompt = _educational_prompt(topic, wikipedia_summary, research) if mode == "educational" else _trending_prompt(topic, research)
 
     if os.getenv("GROQ_API_KEY"):
         try:
@@ -69,8 +69,9 @@ def _generate_with_gemini(prompt: str, topic: str, mode: str) -> dict:
 
 # ── Prompts ───────────────────────────────────────────────────────────────────
 
-def _trending_prompt(topic: str) -> str:
-    return f"""Write a PROFESSIONAL, high-retention YouTube script about the trending topic: "{topic}".
+def _trending_prompt(topic: str, research: dict = None) -> str:
+    research_block = f"\n\n{research['research_text']}\n" if research and research.get("research_text") else ""
+    return f"""Write a PROFESSIONAL, high-retention YouTube script about the trending topic: "{topic}".{research_block}
 
 NARRATIVE STRUCTURE — follow this exact arc:
 - SLIDE_1 (THE HOOK): Start with a shocking stat, bold claim, or provocative question that makes it IMPOSSIBLE to scroll past. Use "You", "Here's why", "Nobody talks about". Max 2 sentences. Must create immediate curiosity gap.
@@ -98,9 +99,11 @@ SLIDE_4: <stakes text>
 SLIDE_5: <CTA text>"""
 
 
-def _educational_prompt(topic: str, wikipedia_summary: str = None) -> str:
+def _educational_prompt(topic: str, wikipedia_summary: str = None, research: dict = None) -> str:
     context = ""
-    if wikipedia_summary:
+    if research and research.get("research_text"):
+        context = f"\n\n{research['research_text']}\n"
+    elif wikipedia_summary:
         context = f"\nFACTUAL REFERENCE (use as inspiration only — never copy verbatim):\n---\n{wikipedia_summary[:400]}\n---\n"
 
     return f"""Write a PROFESSIONAL educational YouTube script that explains: "{topic}"
