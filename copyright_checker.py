@@ -33,7 +33,7 @@ RISKY_TRADEMARKS = [
     "spotify", "instagram", "tiktok", "youtube",
 ]
 
-APPROVED_IMAGE_PROVIDERS = {"Generated", "Pexels-CC0", "Unsplash-CC0"}
+APPROVED_IMAGE_PROVIDERS = {"Generated", "Pexels-CC0", "Unsplash-CC0", "Pexels-Video-CC0"}
 APPROVED_FONTS = {"Roboto"}  # Apache 2.0
 
 

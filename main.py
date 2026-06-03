@@ -12,7 +12,7 @@ from topic_selector import select_topic_and_mode
 from trend_fetcher import get_trending_topic
 from script_generator import generate_script
 from tts_generator import synthesize_slides
-from image_fetcher import fetch_image
+from media_fetcher import fetch_background
 from video_builder import build_video
 from copyright_checker import run_full_audit
 from youtube_uploader import upload_video
@@ -51,12 +51,11 @@ def run():
     # Step 2: Generate original AI script
     script = generate_script(topic, mode=mode, wikipedia_summary=wikipedia_summary)
 
-    # Step 3: Generate 100% original background (no external images)
-    bg_path = os.path.join(run_dir, "background.jpg")
-    image_result = fetch_image(topic, bg_path)
+    # Step 3: Fetch background media (video clip > image > generated)
+    bg = fetch_background(topic, run_dir)
 
     # Step 4: Full copyright audit — halt on errors
-    audit = run_full_audit(script, image_result["provider"])
+    audit = run_full_audit(script, bg["provider"])
     script = audit["script"]
 
     if not audit["passed"]:
@@ -69,7 +68,7 @@ def run():
 
     # Step 6: Build video
     video_path = os.path.join(run_dir, "video.mp4")
-    build_video(script["slides"], audio_paths, image_result["path"], video_path)
+    build_video(script["slides"], audio_paths, bg, video_path)
 
     # Step 7: Upload to YouTube
     url = upload_video(
