@@ -1,12 +1,14 @@
 name: TrendPulse Daily Upload
 
 on:
-  schedule:
-    # Trending days (Mon/Wed/Fri/Sun) → 7 AM UTC
-#    - cron: "0 7 * * 0,1,3,5"
-    # Educational days (Tue/Thu/Sat) → 6 PM UTC
-#    - cron: "0 18 * * 2,4,6"
+  # Schedule is paused. To resume, add back under a `schedule:` key:
+  #   - cron: "0 7 * * 0,1,3,5"   # trending days, 7 AM UTC
+  #   - cron: "0 18 * * 2,4,6"    # educational days, 6 PM UTC
   workflow_dispatch:        # manual trigger from GitHub UI
+
+concurrency:
+  group: trendpulse-daily-upload
+  cancel-in-progress: false
 
 permissions:
   contents: write           # needed to commit history.json back
@@ -54,6 +56,7 @@ jobs:
           git config user.email "yashwanthan00@gmail.com"
           git add docs/history.json docs/shorts_used.json 2>/dev/null || true
           git diff --staged --quiet || git commit -m "📊 Update dashboard history [$(date +'%Y-%m-%d')]"
+          git pull --rebase origin main || true
           git push
 
       - name: Upload logs as artifact
