@@ -77,3 +77,18 @@ TrendPulse/
 ├── output/              # generated videos (gitignored)
 └── logs/                # run logs (gitignored)
 ```
+
+## Live stream sync (GTA 6 walkthrough)
+
+`live_sync.py` runs daily via `.github/workflows/live_sync.yml`. For every finished stream titled
+`GTA 6 - Chapter N | Mission` it rewrites the title, description and tags, appends the video to the
+walkthrough playlist, and uploads a generated thumbnail. Progress is tracked per step in
+`live_sync_state.json`, so quota errors or a not-yet-generated preview frame are retried next run.
+
+- **Title your streams** as `GTA 6 - Chapter N | Mission Name`. Anything else is logged and left alone.
+- **Secret:** add `YOUTUBE_LIVE_TOKEN` (an authorized-user `token.json` with the full `youtube` scope).
+  Publish the Google OAuth consent screen, or the refresh token expires after 7 days.
+- **Try it:** Actions -> Live Stream Sync -> Run workflow (dry run is the default).
+- **Local:** `YOUTUBE_LIVE_TOKEN="$(cat token.json)" python live_sync.py --dry-run`
+- Quota: about 150 units per new video against the 10,000/day default.
+- Optional: drop a font at `fonts/thumb.ttf` (e.g. Anton) for bolder thumbnail text on the runner.

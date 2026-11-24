@@ -1,0 +1,52 @@
+name: Live Stream Sync
+
+on:
+  schedule:
+    - cron: "30 3 * * *"        # daily, 03:30 UTC (09:00 IST) - after the previous day's streams have processed
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Plan only (no YouTube changes)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write               # commits live_sync_state.json back
+
+concurrency:
+  group: live-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          sudo apt-get update && sudo apt-get install -y fonts-liberation --fix-missing
+          pip install -r requirements-live.txt
+
+      - name: Run tests
+        run: python -m unittest discover -s tests
+
+      - name: Sync new GTA 6 streams
+        env:
+          YOUTUBE_LIVE_TOKEN: ${{ secrets.YOUTUBE_LIVE_TOKEN }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then python live_sync.py --dry-run; else python live_sync.py; fi
+
+      - name: Commit sync state
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+        run: |
+          git config user.name "TrendPulse Bot"
+          git config user.email "yashwanthan00@gmail.com"
+          git add live_sync_state.json 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "Update live sync state [$(date +'%Y-%m-%d')]"
+          git pull --rebase --autostash && git push
