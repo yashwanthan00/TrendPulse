@@ -1,0 +1,34 @@
+{
+  "videos": {
+    "NhWEv4EWfW8": {
+      "chapter": 3,
+      "mission": "Dubious Provenance",
+      "steps": {
+        "metadata": true,
+        "playlist": true,
+        "thumbnail": true
+      },
+      "updated": "2026-11-25T13:17:26+00:00"
+    },
+    "fX5gU7GLT6Y": {
+      "chapter": 3,
+      "mission": "Top Billing",
+      "steps": {
+        "metadata": true,
+        "playlist": true,
+        "thumbnail": false
+      },
+      "updated": "2026-11-25T13:17:33+00:00"
+    },
+    "hI3N8DfMPCY": {
+      "chapter": 3,
+      "mission": "Car Service",
+      "steps": {
+        "metadata": true,
+        "playlist": true,
+        "thumbnail": true
+      },
+      "updated": "2026-11-25T13:17:32+00:00"
+    }
+  }
+}
