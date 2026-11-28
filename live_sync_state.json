@@ -1,5 +1,15 @@
 {
   "videos": {
+    "Cf9s4E2HLBg": {
+      "chapter": 3,
+      "mission": "Crosstown Traffic",
+      "steps": {
+        "metadata": true,
+        "playlist": true,
+        "thumbnail": true
+      },
+      "updated": "2026-11-28T12:04:39+00:00"
+    },
     "NhWEv4EWfW8": {
       "chapter": 3,
       "mission": "Dubious Provenance",
